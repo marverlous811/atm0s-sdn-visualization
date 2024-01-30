@@ -1,11 +1,9 @@
 use std::collections::VecDeque;
 
 use atm0s_sdn_identity::{NodeAddr, NodeId};
+use log::debug;
 
-use crate::service::{
-    msg::VisualizationControllAction,
-    store::{NetworkGraph, NetworkGraphEdgeData},
-};
+use crate::service::{msg::VisualizationControllAction, store::NetworkGraph};
 
 use super::IVisializationController;
 
@@ -29,46 +27,38 @@ impl NodeStatsCollector {
 
 impl IVisializationController for NodeStatsCollector {
     fn report_stats(&mut self, ts: u64) {
-        let action = VisualizationControllAction::NodeStats(self.node_id, self.node_addr.clone(), ts);
-        self.execute_action(action.clone());
-        self.queue_action.push_back(action);
+        self.store.upsert_node(self.node_id, self.node_addr.clone(), ts, None);
+        // Send stats to other collector
+        let stats = self.store.get_node(self.node_id);
+        match stats {
+            Some(stats) => {
+                let action = VisualizationControllAction::NodeStats(self.node_id, self.node_addr.clone(), ts, Some(stats.node_neighbors.clone()));
+                self.queue_action.push_back(action)
+            }
+            None => {
+                panic!("current node must be exist in its graph")
+            }
+        }
     }
 
     fn pop_action(&mut self) -> Option<VisualizationControllAction> {
         self.queue_action.pop_front()
     }
 
-    fn on_node_connected(&mut self, src_id: NodeId, src_addr: NodeAddr, dest_id: NodeId, dest_addr: NodeAddr, now: u64) {
-        let action = VisualizationControllAction::OnNodeConnected(src_id, src_addr, dest_id, dest_addr, now);
-        if src_id == self.node_id || dest_id == self.node_id {
-            self.execute_action(action.clone())
-        }
-        self.queue_action.push_back(action)
+    fn on_node_connected(&mut self, dest_id: NodeId, dest_addr: NodeAddr, now: u64) {
+        self.store.upsert_node(dest_id, dest_addr, now, None);
+        self.store.add_edge(self.node_id, dest_id);
     }
 
-    fn on_node_disconnected(&mut self, src_id: NodeId, src_addr: NodeAddr, dest_id: NodeId, dest_addr: NodeAddr, now: u64) {
-        let action = VisualizationControllAction::OnNodeDisconencted(src_id, src_addr, dest_id, dest_addr, now);
-        if src_id == self.node_id || dest_id == self.node_id {
-            self.execute_action(action.clone())
-        }
-        self.queue_action.push_back(action)
+    fn on_node_disconnected(&mut self, dest_id: NodeId) {
+        self.store.remove_edge(self.node_id, dest_id);
     }
 
     fn execute_action(&mut self, action: VisualizationControllAction) {
         match action {
-            VisualizationControllAction::NodeStats(node_id, node_addr, ts) => {
-                // println!("[NodeStatsCollector] got a stats from node {}, with addr {}, at {}", node_id, node_addr, ts);
-                self.store.upsert_node(node_id, node_addr, ts);
-            }
-            VisualizationControllAction::OnNodeConnected(src_node_id, src_node_addr, dest_node_id, dest_node_addr, ts) => {
-                let node_edge_data = NetworkGraphEdgeData::new(src_node_id, src_node_addr, dest_node_id, dest_node_addr, ts);
-                // println!("[NodeStatsCollector] node {} connected to {} at {}", src_node_id, dest_node_id, ts);
-                self.store.add_edge(node_edge_data)
-            }
-            VisualizationControllAction::OnNodeDisconencted(src_node_id, src_node_addr, dest_node_id, dest_node_addr, ts) => {
-                let node_edge_data = NetworkGraphEdgeData::new(src_node_id, src_node_addr, dest_node_id, dest_node_addr, ts);
-                // println!("[NodeStatsCollector] node {} disconnected to {} at {}", src_node_id, dest_node_id, ts);
-                self.store.remove_edge(node_edge_data)
+            VisualizationControllAction::NodeStats(node_id, node_addr, ts, neighbour_ids) => {
+                debug!("[VisualizationService][NodeStatsCollector] got a stats from node {}, with addr {}, at {}", node_id, node_addr, ts);
+                self.store.upsert_node(node_id, node_addr, ts, neighbour_ids);
             }
         };
     }

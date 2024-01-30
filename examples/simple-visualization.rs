@@ -16,6 +16,7 @@ use atm0s_sdn_visualization::VisualizationHandlerEvent;
 use atm0s_sdn_visualization::VisualizationSdk;
 use atm0s_sdn_visualization::VisualziationConf;
 use clap::Arg;
+use clap::ArgAction;
 use clap::ArgMatches;
 use clap::{arg, Parser};
 use reedline_repl_rs::{clap::Command, Error, Repl};
@@ -45,6 +46,9 @@ enum NodeSdkEvent {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    #[arg(env, long, short, action=ArgAction::SetTrue)]
+    is_master: bool,
+
     #[arg(env, long)]
     node_id: u32,
 
@@ -88,6 +92,7 @@ async fn main() {
     env_logger::builder().filter_level(log::LevelFilter::Error).format_timestamp_millis().init();
     let args = Args::parse();
     let mut node_addr_builder = NodeAddrBuilder::new(args.node_id);
+    println!("args is master {}", args.is_master);
 
     // Create transport layer
     // The port number is 50000 + node_id
@@ -114,7 +119,7 @@ async fn main() {
     let (visualization, visualization_sdk) = VisualizationBehavior::new(VisualziationConf {
         node_id: args.node_id,
         node_addr: node_addr_builder.addr(),
-        is_master: args.node_id == 0,
+        is_master: args.is_master,
     });
 
     let plan_cfg = NetworkPlaneConfig {
@@ -145,7 +150,7 @@ async fn main() {
         .with_command_async(Command::new("connect").arg(Arg::new("addr").required(true)).about("Connect to node addr"), |args, context| {
             Box::pin(connect(args, context))
         })
-        .with_command_async(Command::new("graph"), |args, context| Box::pin(print_dump_graph(args, context)))
+        .with_command_async(Command::new("graph").about("Print dump graph"), |args, context| Box::pin(print_dump_graph(args, context)))
         .with_command(Command::new("info").about("Get Node Info"), print_node_info)
         .with_command(Command::new("router").about("Print router table"), print_route_table);
     let _ = repl.run_async().await;

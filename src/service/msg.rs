@@ -21,20 +21,12 @@ pub enum VisualizationSdkEvent {}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum VisualizationControllAction {
-    //node_id, node_address, timestamp
-    NodeStats(NodeId, NodeAddr, u64),
-    //src_node_id, src_node_addr, dest_node_id, dest_node_addr, timestamp
-    OnNodeConnected(NodeId, NodeAddr, NodeId, NodeAddr, u64),
-    //src_node_id, src_node_addr, dest_node_id, dest_node_addr, timestamp
-    OnNodeDisconencted(NodeId, NodeAddr, NodeId, NodeAddr, u64),
+    //node_id, node_address, timestamp, neighbour_ids
+    NodeStats(NodeId, NodeAddr, u64, Option<Vec<NodeId>>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum VisualizationMsg {
-    //node_id, node_address, timestamp
-    NodeStats(NodeId, Vec<u8>, u64),
-    //src_node_id, src_node_addr, dest_node_id, dest_node_addr, timestamp
-    OnNodeConnected(NodeId, Vec<u8>, NodeId, Vec<u8>, u64),
-    //src_node_id, src_node_addr, dest_node_id, dest_node_addr, timestamp
-    OnNodeDisconencted(NodeId, Vec<u8>, NodeId, Vec<u8>, u64),
+    //node_id, node_address, timestamp, neighbour_ids
+    NodeStats(NodeId, Vec<u8>, u64, Option<Vec<NodeId>>),
 }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use atm0s_sdn_identity::{NodeAddr, NodeAddrBuilder, NodeId};
+use atm0s_sdn_identity::{NodeAddr, NodeId};
 use parking_lot::RwLock;
 
 use super::{
@@ -42,13 +42,12 @@ impl VisualizationLogic {
         self.controller.write().pop_action()
     }
 
-    pub fn on_node_connected(&mut self, src_id: NodeId, src_addr: NodeAddr, dest_id: NodeId, dest_addr: NodeAddr, now: u64) {
-        self.controller.write().on_node_connected(src_id, src_addr, dest_id, dest_addr, now);
+    pub fn on_node_connected(&mut self, node_id: NodeId, node_addr: NodeAddr, now: u64) {
+        self.controller.write().on_node_connected(node_id, node_addr, now);
     }
 
-    pub fn on_node_disconnected(&mut self, src_id: NodeId, src_addr: NodeAddr, dest_id: NodeId, now: u64) {
-        let dest_addr_builder = NodeAddrBuilder::new(dest_id);
-        self.controller.write().on_node_disconnected(src_id, src_addr, dest_id, dest_addr_builder.addr(), now);
+    pub fn on_node_disconnected(&mut self, node_id: NodeId, _now: u64) {
+        self.controller.write().on_node_disconnected(node_id);
     }
 
     pub fn execute_action(&mut self, action: VisualizationControllAction) {

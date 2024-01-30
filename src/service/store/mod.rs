@@ -1,3 +1,3 @@
 mod graph;
 
-pub use graph::{NetworkGraph, NetworkGraphEdgeData};
+pub use graph::{NetworkGraph, NetworkNodeData};

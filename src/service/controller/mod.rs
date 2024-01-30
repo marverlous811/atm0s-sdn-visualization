@@ -9,8 +9,8 @@ use super::msg::{VisualizationControllAction, VisualziationConf};
 
 pub trait IVisializationController {
     fn report_stats(&mut self, ts: u64);
-    fn on_node_connected(&mut self, src_id: NodeId, src_addr: NodeAddr, dest_id: NodeId, dest_addr: NodeAddr, now: u64);
-    fn on_node_disconnected(&mut self, src_id: NodeId, src_addr: NodeAddr, dest_id: NodeId, dest_addr: NodeAddr, now: u64);
+    fn on_node_connected(&mut self, node_id: NodeId, addr: NodeAddr, time: u64);
+    fn on_node_disconnected(&mut self, dest_id: NodeId);
     fn pop_action(&mut self) -> Option<VisualizationControllAction>;
     fn execute_action(&mut self, action: VisualizationControllAction);
     fn dump_graph(&self);
