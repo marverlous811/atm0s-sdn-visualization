@@ -1,6 +1,5 @@
-use atm0s_sdn_identity::{NodeAddr, NodeId};
+use atm0s_sdn_identity::NodeId;
 use atm0s_sdn_network::behaviour::{ConnectionContext, ConnectionHandler, ConnectionHandlerAction};
-use atm0s_sdn_network::msg::{MsgHeader, TransportMsg};
 use atm0s_sdn_network::transport::ConnectionEvent;
 use atm0s_sdn_utils::vec_dequeue::VecDeque;
 
