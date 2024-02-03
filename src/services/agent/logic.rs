@@ -1,15 +1,19 @@
-use std::collections::HashSet;
-
-use atm0s_sdn_identity::{NodeAddr, NodeId};
+use atm0s_sdn_identity::{ConnId, NodeAddr, NodeId};
+use atm0s_sdn_network::transport::ConnectionStats;
 use atm0s_sdn_utils::vec_dequeue::VecDeque;
 
-use super::msg::VisualizationAgentMsg;
+use crate::identity::{ConnectionMetric, ConnectionStatus};
+
+use super::{
+    msg::VisualizationAgentMsg,
+    storage::{ConnectionModifyData, ConnectionNode, ConnectionStorage},
+};
 
 pub struct VisualizationAgentLogic {
     node_id: NodeId,
     node_addr: NodeAddr,
-    neighbour_ids: Vec<NodeId>,
     msg_queue: VecDeque<VisualizationAgentMsg>,
+    storage: ConnectionStorage,
 }
 
 impl VisualizationAgentLogic {
@@ -17,32 +21,37 @@ impl VisualizationAgentLogic {
         Self {
             node_id: node_id,
             node_addr: node_addr,
-            neighbour_ids: Vec::new(),
             msg_queue: VecDeque::new(),
+            storage: ConnectionStorage::new(),
         }
     }
 
-    pub fn report_stats(&mut self, now_ms: u64) {
-        let msg = VisualizationAgentMsg::NodeStats(self.node_id, self.node_addr.clone().to_vec(), now_ms, Some(self.neighbour_ids.clone()));
-        self.msg_queue.push_back(msg);
+    pub fn report_stats(&mut self, now_ms: u64) {}
+
+    pub fn on_node_connected(&mut self, conn_id: ConnId, node_id: NodeId, addr: NodeAddr, now: u64) {
+        self.storage.new_connection(conn_id, node_id, addr, now);
     }
 
-    pub fn on_node_connected(&mut self, dest_id: NodeId) {
-        let mut tmp = self.neighbour_ids.clone();
-        tmp.push(dest_id);
-        let mut retval = Vec::new();
-        let mut unique_vec = HashSet::<NodeId>::new();
-        for &id in &tmp {
-            if unique_vec.insert(id) {
-                retval.push(id);
-            }
-        }
-
-        self.neighbour_ids = retval;
+    pub fn on_node_disconnected(&mut self, conn_id: ConnId, now: u64) {
+        self.storage.update_connection_data(
+            conn_id,
+            ConnectionModifyData {
+                status: Some(ConnectionStatus::DISCONNECTED),
+                metric: None,
+                latest_updated_at: now,
+            },
+        );
     }
 
-    pub fn on_node_disconnected(&mut self, dest_id: NodeId) {
-        self.neighbour_ids.retain(|&x| x != dest_id)
+    pub fn on_connection_stats(&mut self, conn_id: ConnId, metric: ConnectionMetric, now: u64) {
+        self.storage.update_connection_data(
+            conn_id,
+            ConnectionModifyData {
+                status: None,
+                metric: Some(metric),
+                latest_updated_at: now,
+            },
+        );
     }
 
     pub fn pop_msg(&mut self) -> Option<VisualizationAgentMsg> {

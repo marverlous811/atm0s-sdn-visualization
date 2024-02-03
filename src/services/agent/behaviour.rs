@@ -7,6 +7,7 @@ use atm0s_sdn_utils::vec_dequeue::VecDeque;
 
 use crate::services::master::VISUALIZATION_MASTER_SERVICE;
 
+use super::handler::VisualizationAgentHandler;
 use super::logic::VisualizationAgentLogic;
 use super::msg::{VisualizationAgentBehaviourEvent, VisualizationAgentHandlerEvent};
 use super::VISUALIZATION_AGENT_SERVICE;
@@ -63,7 +64,15 @@ where
 
     fn on_local_msg(&mut self, ctx: &BehaviorContext, now_ms: u64, msg: TransportMsg) {}
 
-    fn on_handler_event(&mut self, ctx: &BehaviorContext, now_ms: u64, node_id: NodeId, conn_id: atm0s_sdn_identity::ConnId, event: BE) {}
+    fn on_handler_event(&mut self, ctx: &BehaviorContext, now_ms: u64, node_id: NodeId, conn_id: atm0s_sdn_identity::ConnId, event: BE) {
+        let msg: Result<VisualizationAgentBehaviourEvent, _> = event.try_into();
+        match msg {
+            Ok(msg) => match msg {
+                VisualizationAgentBehaviourEvent::ConnectionStats(conn_id, metric) => self.logic.on_connection_stats(conn_id, metric, now_ms),
+            },
+            Err(_e) => {}
+        }
+    }
 
     fn on_sdk_msg(&mut self, ctx: &BehaviorContext, now_ms: u64, from_service: u8, event: SE) {}
 
@@ -72,12 +81,12 @@ where
     }
 
     fn on_incoming_connection_connected(&mut self, ctx: &BehaviorContext, now_ms: u64, conn: std::sync::Arc<dyn ConnectionSender>) -> Option<Box<dyn ConnectionHandler<BE, HE>>> {
-        self.logic.on_node_connected(conn.remote_node_id());
-        None
+        self.logic.on_node_connected(conn.conn_id(), conn.remote_node_id(), conn.remote_addr(), now_ms);
+        Some(Box::new(VisualizationAgentHandler::new(conn.conn_id())))
     }
 
     fn on_incoming_connection_disconnected(&mut self, ctx: &BehaviorContext, now_ms: u64, node_id: NodeId, conn_id: atm0s_sdn_identity::ConnId) {
-        self.logic.on_node_disconnected(node_id);
+        self.logic.on_node_disconnected(conn_id, now_ms);
     }
 
     fn check_outgoing_connection(&mut self, ctx: &BehaviorContext, now_ms: u64, node: NodeId, conn_id: atm0s_sdn_identity::ConnId) -> Result<(), ConnectionRejectReason> {
@@ -85,12 +94,12 @@ where
     }
 
     fn on_outgoing_connection_connected(&mut self, ctx: &BehaviorContext, now_ms: u64, conn: std::sync::Arc<dyn ConnectionSender>) -> Option<Box<dyn ConnectionHandler<BE, HE>>> {
-        self.logic.on_node_connected(conn.remote_node_id());
-        None
+        self.logic.on_node_connected(conn.conn_id(), conn.remote_node_id(), conn.remote_addr(), now_ms);
+        Some(Box::new(VisualizationAgentHandler::new(conn.conn_id())))
     }
 
     fn on_outgoing_connection_disconnected(&mut self, ctx: &BehaviorContext, now_ms: u64, node_id: NodeId, conn_id: atm0s_sdn_identity::ConnId) {
-        self.logic.on_node_disconnected(node_id);
+        self.logic.on_node_disconnected(conn_id, now_ms);
     }
 
     fn on_outgoing_connection_error(&mut self, ctx: &BehaviorContext, now_ms: u64, node_id: NodeId, conn_id: atm0s_sdn_identity::ConnId, err: &OutgoingConnectionError) {}

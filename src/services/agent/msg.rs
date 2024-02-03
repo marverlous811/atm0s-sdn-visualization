@@ -1,8 +1,12 @@
-use atm0s_sdn_identity::NodeId;
+use atm0s_sdn_identity::{ConnId, NodeId};
 use serde::{Deserialize, Serialize};
 
+use crate::identity::ConnectionMetric;
+
 #[derive(Debug, PartialEq, Eq)]
-pub enum VisualizationAgentBehaviourEvent {}
+pub enum VisualizationAgentBehaviourEvent {
+    ConnectionStats(ConnId, ConnectionMetric),
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum VisualizationAgentHandlerEvent {}
