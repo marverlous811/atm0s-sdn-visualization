@@ -34,7 +34,7 @@ impl<HE, SE> VisualizationAgentBehaviour<HE, SE> {
         while let Some(msg) = self.logic.pop_msg() {
             let header = MsgHeader::new()
                 .set_to_service_id(VISUALIZATION_MASTER_SERVICE)
-                .set_route(RouteRule::ToService((VISUALIZATION_MASTER_SERVICE as u32)));
+                .set_route(RouteRule::ToService(VISUALIZATION_MASTER_SERVICE as u32));
             let action = TransportMsg::from_payload_bincode(header, &msg);
             self.queue_action.push_back(NetworkBehaviorAction::ToNet(action))
         }

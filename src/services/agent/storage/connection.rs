@@ -1,15 +1,16 @@
-use atm0s_sdn_identity::{ConnDirection, ConnId, NodeAddr, NodeId};
+use atm0s_sdn_identity::{ConnId, NodeAddr, NodeId};
 use atm0s_sdn_utils::hashmap::HashMap;
 use log::{debug, error};
 
 use crate::identity::{ConnectionMetric, ConnectionStatus};
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConnectionNode {
     pub uuid: u64,
     pub protocol: u8,
     pub node_id: NodeId,
     pub addr: String,
-    pub direction: ConnDirection,
+    pub direction: u8,
     pub status: ConnectionStatus,
     pub metric: Option<ConnectionMetric>,
     pub latest_updated_at: u64,
@@ -44,7 +45,7 @@ impl ConnectionStorage {
                         protocol: id.protocol(),
                         node_id,
                         addr: addr.to_string(),
-                        direction: id.direction(),
+                        direction: id.direction().to_byte(),
                         status: ConnectionStatus::CONNECTED,
                         metric: None,
                         latest_updated_at: now,
@@ -77,5 +78,13 @@ impl ConnectionStorage {
                 false
             }
         }
+    }
+
+    pub fn list_conns(&self) -> Vec<ConnectionNode> {
+        let mut ret_val = Vec::<ConnectionNode>::new();
+        for (_, conn) in self.conns.iter() {
+            ret_val.push(conn.clone());
+        }
+        ret_val
     }
 }
