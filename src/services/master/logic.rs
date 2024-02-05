@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use atm0s_sdn_identity::NodeAddr;
 use parking_lot::RwLock;
 
 use crate::VisualizationAgentMsg;
 
-use super::controller::{NetworkNode, VisualizationController};
+use super::{controller::VisualizationController, storage::TransportData};
 
 pub struct VisualizationMasterLogic {
     controller: Arc<RwLock<Box<VisualizationController>>>,
@@ -25,20 +24,22 @@ impl VisualizationMasterLogic {
 
     pub fn process_agent_msg(&mut self, msg: VisualizationAgentMsg) {
         match msg {
-            VisualizationAgentMsg::NodeStats(id, addr_vec, ts, neighbour_ids) => {
-                let neighbours = match neighbour_ids {
-                    Some(data) => data,
-                    None => Vec::new(),
-                };
-                if let Some(addr) = NodeAddr::from_vec(&addr_vec) {
-                    let node = NetworkNode {
-                        id,
-                        addr,
-                        latest_ping: ts,
-                        neighbour_ids: neighbours,
-                    };
-                    self.controller.write().upsert_node_stats(node)
-                }
+            VisualizationAgentMsg::NodePing(node_id, addr, now_ms) => {
+                self.controller.write().upsert_node(node_id, addr, now_ms);
+            }
+            VisualizationAgentMsg::NodeConnections(addr, conns) => {
+                let data: Vec<TransportData> = conns
+                    .into_iter()
+                    .map(|conn| TransportData {
+                        node_id: conn.node_id,
+                        addr: conn.addr,
+                        metric: conn.metric.clone(),
+                        direction: conn.direction,
+                        status: conn.status,
+                        last_updated_at: conn.latest_updated_at,
+                    })
+                    .collect();
+                self.controller.write().update_node_conns(addr, data);
             }
         }
     }

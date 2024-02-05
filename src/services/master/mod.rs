@@ -4,6 +4,7 @@ mod handler;
 mod logic;
 mod msg;
 mod sdk;
+mod storage;
 
 pub static VISUALIZATION_MASTER_SERVICE: u8 = 8;
 
