@@ -4,7 +4,7 @@ use atm0s_sdn_utils::hashmap::HashMap;
 use log::error;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct TransportData {
+pub struct TransportConnectionData {
     pub node_id: NodeId,
     pub addr: String,
     pub metric: ConnectionMetric,
@@ -13,12 +13,50 @@ pub struct TransportData {
     pub direction: u8,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct NodeTransportData {
     node_id: NodeId,
     addr: String,
     last_ping_ts: u64,
-    connections: Vec<TransportData>,
+    connections: Vec<TransportConnectionData>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct NetworkTransportData {
+    pub addr: String,
+    pub last_ping_ts: u64,
+    pub connections: Vec<TransportConnectionData>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct NetworkNodeData {
+    pub node_id: NodeId,
+    pub transports: Vec<NetworkTransportData>,
+}
+
+impl NetworkNodeData {
+    pub fn dump(&self) {
+        println!("===================================================================");
+        println!("Node: {}", self.node_id);
+        for trans in self.transports.iter() {
+            println!("Transport addr: {}, last ping ts: {}", trans.addr, trans.last_ping_ts);
+            println!("List Connection: ");
+            for conns in trans.connections.iter() {
+                println!(
+                    "- dest node: {}, dest addr: {}, direction: {}, status: {}, latency: {}ms, bandwidth: {}kbps, loss: {}%, last updated at: {}",
+                    conns.node_id,
+                    conns.addr,
+                    conns.direction,
+                    conns.status.to_bytes(),
+                    conns.metric.latency,
+                    conns.metric.bandwidth,
+                    conns.metric.loss_percent,
+                    conns.last_updated_at,
+                );
+            }
+        }
+        println!("===================================================================");
+    }
 }
 
 impl NodeTransportData {
@@ -41,7 +79,7 @@ impl NodeConnectionStorage {
         Self { transports: HashMap::new() }
     }
 
-    pub fn upsertNode(&mut self, node_id: NodeId, addr: String, last_ping_ts: u64) {
+    pub fn upsert_node(&mut self, node_id: NodeId, addr: String, last_ping_ts: u64) {
         match self.transports.get_mut(&addr) {
             Some(trans) => {
                 if last_ping_ts > trans.last_ping_ts {
@@ -55,10 +93,10 @@ impl NodeConnectionStorage {
         }
     }
 
-    pub fn updateNodeConnection(&mut self, addr: String, connections: Vec<TransportData>) {
+    pub fn update_node_connection(&mut self, addr: String, connections: Vec<TransportConnectionData>) {
         match self.transports.get_mut(&addr) {
             Some(trans) => {
-                let mut tmp = HashMap::<String, TransportData>::new();
+                let mut tmp = HashMap::<String, TransportConnectionData>::new();
                 while let Some(node) = trans.connections.pop() {
                     tmp.insert(node.addr.clone(), node);
                 }
@@ -84,21 +122,48 @@ impl NodeConnectionStorage {
         }
     }
 
-    pub fn print_dump(&self) {
-        for (_, trans) in self.transports.iter() {
-            println!("Node: {}, Addr: {}, last ping: {}", trans.node_id, trans.addr, trans.last_ping_ts);
-            println!("List Connections: ");
-            for conn in trans.connections.clone().into_iter() {
-                println!("- Node: {}, Addr: {}, direction: {}, status: {}", conn.node_id, conn.addr, conn.direction, conn.status.to_bytes());
-                println!(
-                    "- Connection stats: latency: {}ms, bandwidth: {}kbps, loss: {}%",
-                    conn.metric.latency, conn.metric.bandwidth, conn.metric.loss_percent
-                );
-                println!("======================================")
-            }
+    pub fn get_node(&self, id: NodeId) -> NetworkNodeData {
+        let node_trans: Vec<NetworkTransportData> = self
+            .transports
+            .iter()
+            .filter(|(_, trans)| trans.node_id == id)
+            .map(|trans| NetworkTransportData {
+                addr: trans.1.addr.clone(),
+                last_ping_ts: trans.1.last_ping_ts,
+                connections: trans.1.connections.clone(),
+            })
+            .collect();
 
-            println!("====================END_CONNECTION_INFO=======================")
+        NetworkNodeData { node_id: id, transports: node_trans }
+    }
+
+    pub fn list_node(&self) -> Vec<NetworkNodeData> {
+        let mut node_map = HashMap::<NodeId, NetworkNodeData>::new();
+        for (_, trans) in self.transports.iter() {
+            match node_map.get_mut(&trans.node_id) {
+                Some(node) => {
+                    let transport = NetworkTransportData {
+                        addr: trans.addr.clone(),
+                        last_ping_ts: trans.last_ping_ts,
+                        connections: trans.connections.clone(),
+                    };
+                    node.transports.push(transport);
+                }
+                None => {
+                    let transport: NetworkTransportData = NetworkTransportData {
+                        addr: trans.addr.clone(),
+                        last_ping_ts: trans.last_ping_ts,
+                        connections: trans.connections.clone(),
+                    };
+                    let node = NetworkNodeData {
+                        node_id: trans.node_id,
+                        transports: vec![transport],
+                    };
+                    node_map.insert(node.node_id, node);
+                }
+            }
         }
+        node_map.iter().map(|(_, data)| data.clone()).collect()
     }
 }
 
@@ -107,56 +172,56 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_upsertNode_adds_new_NodeTransportData_if_address_not_present() {
+    fn test_upsert_node_adds_new_node_transport_data_if_address_not_present() {
         let mut storage = NodeConnectionStorage::new();
         let node_id = 1;
         let addr = String::from("127.0.0.1");
         let last_ping_ts = 123456789;
 
-        storage.upsertNode(node_id.clone(), addr.clone(), last_ping_ts);
+        storage.upsert_node(node_id.clone(), addr.clone(), last_ping_ts);
 
         assert_eq!(storage.transports.len(), 1);
         assert_eq!(storage.transports.get(&addr), Some(&NodeTransportData::new(node_id, addr, last_ping_ts)));
     }
 
     #[test]
-    fn test_upsertNode_updates_last_ping_ts_if_address_already_present_and_last_ping_ts_greater() {
+    fn test_upsert_node_updates_last_ping_ts_if_address_already_present_and_last_ping_ts_greater() {
         let mut storage = NodeConnectionStorage::new();
         let node_id = 1;
         let addr = String::from("127.0.0.1");
         let last_ping_ts1 = 123456789;
         let last_ping_ts2 = 987654321;
 
-        storage.upsertNode(node_id.clone(), addr.clone(), last_ping_ts1);
-        storage.upsertNode(node_id.clone(), addr.clone(), last_ping_ts2);
+        storage.upsert_node(node_id.clone(), addr.clone(), last_ping_ts1);
+        storage.upsert_node(node_id.clone(), addr.clone(), last_ping_ts2);
 
         assert_eq!(storage.transports.len(), 1);
         assert_eq!(storage.transports.get(&addr), Some(&NodeTransportData::new(node_id, addr, last_ping_ts2)));
     }
 
     #[test]
-    fn test_upsertNode_does_not_update_last_ping_ts_if_address_already_present_and_last_ping_ts_less_or_equal() {
+    fn test_upsert_node_does_not_update_last_ping_ts_if_address_already_present_and_last_ping_ts_less_or_equal() {
         let mut storage = NodeConnectionStorage::new();
         let node_id = 1;
         let addr = String::from("127.0.0.1");
         let last_ping_ts1 = 123456789;
         let last_ping_ts2 = 987654321;
 
-        storage.upsertNode(node_id.clone(), addr.clone(), last_ping_ts1);
-        storage.upsertNode(node_id.clone(), addr.clone(), last_ping_ts2);
-        storage.upsertNode(node_id.clone(), addr.clone(), last_ping_ts1);
+        storage.upsert_node(node_id.clone(), addr.clone(), last_ping_ts1);
+        storage.upsert_node(node_id.clone(), addr.clone(), last_ping_ts2);
+        storage.upsert_node(node_id.clone(), addr.clone(), last_ping_ts1);
 
         assert_eq!(storage.transports.len(), 1);
         assert_eq!(storage.transports.get(&addr), Some(&NodeTransportData::new(node_id, addr, last_ping_ts2)));
     }
 
     #[test]
-    fn test_updateNodeConnection_updates_fields_of_existing_TransportData_if_address_and_TransportData_match() {
+    fn test_update_node_connection_updates_fields_of_existing_transport_data_if_address_and_transport_data_match() {
         let mut storage = NodeConnectionStorage::new();
         let node_id = 1;
         let addr = String::from("127.0.0.1");
         let last_ping_ts = 123456789;
-        let transport_data1 = TransportData {
+        let transport_data1 = TransportConnectionData {
             node_id: node_id.clone(),
             addr: addr.clone(),
             metric: ConnectionMetric {
@@ -168,7 +233,7 @@ mod test {
             last_updated_at: 0,
             direction: 0,
         };
-        let transport_data2 = TransportData {
+        let transport_data2 = TransportConnectionData {
             node_id: node_id.clone(),
             addr: addr.clone(),
             metric: ConnectionMetric {
@@ -181,9 +246,9 @@ mod test {
             direction: 0,
         };
 
-        storage.upsertNode(node_id.clone(), addr.clone(), last_ping_ts);
-        storage.updateNodeConnection(addr.clone(), vec![transport_data1.clone()]);
-        storage.updateNodeConnection(addr.clone(), vec![transport_data2.clone()]);
+        storage.upsert_node(node_id.clone(), addr.clone(), last_ping_ts);
+        storage.update_node_connection(addr.clone(), vec![transport_data1.clone()]);
+        storage.update_node_connection(addr.clone(), vec![transport_data2.clone()]);
 
         assert_eq!(storage.transports.len(), 1);
         assert_eq!(
@@ -198,12 +263,12 @@ mod test {
     }
 
     #[test]
-    fn test_updateNodeConnection_removes_all_existing_TransportData_if_address_present_and_connections_empty() {
+    fn test_update_node_connection_removes_all_existing_transport_data_if_address_present_and_connections_empty() {
         let mut storage = NodeConnectionStorage::new();
         let node_id = 1;
         let addr = String::from("127.0.0.1");
         let last_ping_ts = 123456789;
-        let transport_data = TransportData {
+        let transport_data = TransportConnectionData {
             node_id: node_id.clone(),
             addr: addr.clone(),
             metric: ConnectionMetric {
@@ -216,9 +281,9 @@ mod test {
             direction: 0,
         };
 
-        storage.upsertNode(node_id.clone(), addr.clone(), last_ping_ts);
-        storage.updateNodeConnection(addr.clone(), vec![transport_data.clone()]);
-        storage.updateNodeConnection(addr.clone(), vec![]);
+        storage.upsert_node(node_id.clone(), addr.clone(), last_ping_ts);
+        storage.update_node_connection(addr.clone(), vec![transport_data.clone()]);
+        storage.update_node_connection(addr.clone(), vec![]);
 
         assert_eq!(storage.transports.len(), 1);
         assert_eq!(
@@ -233,10 +298,10 @@ mod test {
     }
 
     #[test]
-    fn test_updateNodeConnection_does_nothing_if_address_not_present() {
+    fn test_update_node_connection_does_nothing_if_address_not_present() {
         let mut storage = NodeConnectionStorage::new();
         let addr = String::from("127.0.0.1");
-        let transport_data = TransportData {
+        let transport_data = TransportConnectionData {
             node_id: 1,
             addr: addr.clone(),
             metric: ConnectionMetric {
@@ -249,8 +314,59 @@ mod test {
             direction: 0,
         };
 
-        storage.updateNodeConnection(addr.clone(), vec![transport_data]);
+        storage.update_node_connection(addr.clone(), vec![transport_data]);
 
         assert_eq!(storage.transports.len(), 0);
+    }
+
+    #[test]
+    fn test_returns_network_node_data_with_correct_node_id_and_matching_transport_data() {
+        let mut storage = NodeConnectionStorage::new();
+        let node_id = 1;
+        let addr1 = String::from("127.0.0.1");
+        let addr2 = String::from("192.168.0.1");
+        let last_ping_ts = 123456789;
+        let transport_data1 = TransportConnectionData {
+            node_id: node_id.clone(),
+            addr: addr1.clone(),
+            metric: ConnectionMetric {
+                latency: 1,
+                loss_percent: 0,
+                bandwidth: 100,
+            },
+            status: ConnectionStatus::CONNECTED,
+            last_updated_at: 0,
+            direction: 0,
+        };
+        let transport_data2 = TransportConnectionData {
+            node_id: node_id.clone(),
+            addr: addr2.clone(),
+            metric: ConnectionMetric {
+                latency: 2,
+                loss_percent: 1,
+                bandwidth: 100,
+            },
+            status: ConnectionStatus::DISCONNECTED,
+            last_updated_at: 987654321,
+            direction: 0,
+        };
+
+        storage.upsert_node(node_id.clone(), addr1.clone(), last_ping_ts);
+        storage.upsert_node(node_id.clone(), addr2.clone(), last_ping_ts);
+        storage.update_node_connection(addr1.clone(), vec![transport_data1.clone()]);
+        storage.update_node_connection(addr2.clone(), vec![transport_data2.clone()]);
+
+        let result = storage.get_node(node_id);
+
+        assert_eq!(result.node_id, node_id);
+        assert_eq!(result.transports.len(), 2);
+        assert_eq!(result.transports[0].addr, addr1);
+        assert_eq!(result.transports[0].last_ping_ts, last_ping_ts);
+        assert_eq!(result.transports[0].connections.len(), 1);
+        assert_eq!(result.transports[0].connections[0], transport_data1);
+        assert_eq!(result.transports[1].addr, addr2);
+        assert_eq!(result.transports[1].last_ping_ts, last_ping_ts);
+        assert_eq!(result.transports[1].connections.len(), 1);
+        assert_eq!(result.transports[1].connections[0], transport_data2);
     }
 }
