@@ -4,7 +4,10 @@ use parking_lot::RwLock;
 
 use crate::VisualizationAgentMsg;
 
-use super::{controller::VisualizationController, storage::TransportData};
+use super::{
+    controller::VisualizationController,
+    storage::{NetworkNodeData, TransportConnectionData},
+};
 
 pub struct VisualizationMasterLogic {
     controller: Arc<RwLock<Box<VisualizationController>>>,
@@ -28,9 +31,9 @@ impl VisualizationMasterLogic {
                 self.controller.write().upsert_node(node_id, addr, now_ms);
             }
             VisualizationAgentMsg::NodeConnections(addr, conns) => {
-                let data: Vec<TransportData> = conns
+                let data: Vec<TransportConnectionData> = conns
                     .into_iter()
-                    .map(|conn| TransportData {
+                    .map(|conn| TransportConnectionData {
                         node_id: conn.node_id,
                         addr: conn.addr,
                         metric: conn.metric.clone(),
@@ -42,6 +45,10 @@ impl VisualizationMasterLogic {
                 self.controller.write().update_node_conns(addr, data);
             }
         }
+    }
+
+    pub fn get_nodes(&self) -> Vec<NetworkNodeData> {
+        self.controller.read().get_nodes()
     }
 
     pub fn dump_graph(self) {

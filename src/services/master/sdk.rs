@@ -1,4 +1,4 @@
-use super::logic::VisualizationMasterLogic;
+use super::{logic::VisualizationMasterLogic, storage::NetworkNodeData};
 
 pub struct VisualizationMasterSdk {
     logic: VisualizationMasterLogic,
@@ -13,6 +13,10 @@ impl Clone for VisualizationMasterSdk {
 impl VisualizationMasterSdk {
     pub fn new(logic: VisualizationMasterLogic) -> Self {
         Self { logic }
+    }
+
+    pub fn get_nodes(&self) -> Vec<NetworkNodeData> {
+        self.logic.get_nodes()
     }
 
     pub fn dump_graph(self) {

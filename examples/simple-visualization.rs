@@ -10,6 +10,8 @@ use atm0s_sdn::{convert_enum, NetworkPlane, NetworkPlaneConfig};
 use atm0s_sdn::{LayersSpreadRouterSyncBehavior, LayersSpreadRouterSyncBehaviorEvent, LayersSpreadRouterSyncHandlerEvent};
 use atm0s_sdn::{ManualBehavior, ManualBehaviorConf, ManualBehaviorEvent, ManualHandlerEvent};
 use atm0s_sdn::{NodeAddrBuilder, UdpTransport};
+use atm0s_sdn_visualization::Server;
+use atm0s_sdn_visualization::ServerConf;
 use atm0s_sdn_visualization::VisualizationAgentBehaviour;
 use atm0s_sdn_visualization::VisualizationAgentBehaviourConf;
 use atm0s_sdn_visualization::VisualizationAgentBehaviourEvent;
@@ -97,7 +99,7 @@ async fn print_dump_graph(_: ArgMatches, context: &mut Context) -> Result<Option
     Ok(None)
 }
 
-async fn master_process(args: Args) -> (NetworkPlane<NodeBehaviorEvent, NodeHandleEvent, NodeSdkEvent>, Repl<Context, Error>) {
+async fn master_process(args: Args) -> (NetworkPlane<NodeBehaviorEvent, NodeHandleEvent, NodeSdkEvent>, Repl<Context, Error>, Option<Server>) {
     let mut node_addr_builder = NodeAddrBuilder::new(args.node_id);
     // Create transport layer
     // The port number is 50000 + node_id
@@ -148,8 +150,10 @@ async fn master_process(args: Args) -> (NetworkPlane<NodeBehaviorEvent, NodeHand
         node_addr: node_addr_builder.addr(),
         router: router.clone(),
         key_value_sdk: key_value_sdk.clone(),
-        visualization_sdk: Some(master_sdk),
+        visualization_sdk: Some(master_sdk.clone()),
     };
+
+    let server = Server::new(ServerConf { port: 8080 }, master_sdk.clone());
 
     let repl = Repl::new(context)
         .with_name("[Master Node] Sample visualization")
@@ -159,10 +163,10 @@ async fn master_process(args: Args) -> (NetworkPlane<NodeBehaviorEvent, NodeHand
         .with_command_async(Command::new("graph").about("Print dump graph"), |args, context| Box::pin(print_dump_graph(args, context)))
         .with_command(Command::new("info").about("Get Node Info"), print_node_info)
         .with_command(Command::new("router").about("Print router table"), print_route_table);
-    return (plane, repl);
+    return (plane, repl, Some(server));
 }
 
-async fn normal_process(args: Args) -> (NetworkPlane<NodeBehaviorEvent, NodeHandleEvent, NodeSdkEvent>, Repl<Context, Error>) {
+async fn normal_process(args: Args) -> (NetworkPlane<NodeBehaviorEvent, NodeHandleEvent, NodeSdkEvent>, Repl<Context, Error>, Option<Server>) {
     let mut node_addr_builder = NodeAddrBuilder::new(args.node_id);
     // Create transport layer
     // The port number is 50000 + node_id
@@ -216,7 +220,7 @@ async fn normal_process(args: Args) -> (NetworkPlane<NodeBehaviorEvent, NodeHand
         })
         .with_command(Command::new("info").about("Get Node Info"), print_node_info)
         .with_command(Command::new("router").about("Print router table"), print_route_table);
-    return (plane, repl);
+    return (plane, repl, None);
 }
 
 #[async_std::main]
@@ -225,7 +229,7 @@ async fn main() {
     let args = Args::parse();
     println!("args is master {}", args.is_master);
 
-    let (mut plane, mut repl) = if args.is_master {
+    let (mut plane, mut repl, server) = if args.is_master {
         master_process(args).await
     } else {
         normal_process(args).await
@@ -236,5 +240,11 @@ async fn main() {
         while let Ok(_) = plane.recv().await {}
         plane.stopped();
     });
+    match server {
+        Some(mut server) => {
+            let _ = async_std::task::spawn(async move { actix_web::rt::System::new().block_on(async move { server.run().await }) });
+        }
+        None => {}
+    }
     let _ = repl.run_async().await;
 }
