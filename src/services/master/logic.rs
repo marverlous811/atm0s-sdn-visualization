@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use crate::VisualizationAgentMsg;
+use crate::{util::calc_hash, VisualizationAgentMsg};
 
 use super::{
     controller::VisualizationController,
@@ -34,6 +34,7 @@ impl VisualizationMasterLogic {
                 let data: Vec<TransportConnectionData> = conns
                     .into_iter()
                     .map(|conn| TransportConnectionData {
+                        id: calc_hash(&conn.addr.clone()),
                         node_id: conn.node_id,
                         addr: conn.addr,
                         metric: conn.metric.clone(),

@@ -1,10 +1,15 @@
-use crate::identity::{ConnectionMetric, ConnectionStatus};
+use crate::{
+    identity::{ConnectionMetric, ConnectionStatus},
+    util::calc_hash,
+};
 use atm0s_sdn_identity::NodeId;
 use atm0s_sdn_utils::hashmap::HashMap;
 use log::error;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct TransportConnectionData {
+    pub id: u64,
     pub node_id: NodeId,
     pub addr: String,
     pub metric: ConnectionMetric,
@@ -15,20 +20,22 @@ pub struct TransportConnectionData {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct NodeTransportData {
+    id: u64,
     node_id: NodeId,
     addr: String,
     last_ping_ts: u64,
     connections: Vec<TransportConnectionData>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct NetworkTransportData {
+    pub id: u64,
     pub addr: String,
     pub last_ping_ts: u64,
     pub connections: Vec<TransportConnectionData>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct NetworkNodeData {
     pub node_id: NodeId,
     pub transports: Vec<NetworkTransportData>,
@@ -62,6 +69,7 @@ impl NetworkNodeData {
 impl NodeTransportData {
     pub fn new(node_id: NodeId, addr: String, last_ping_ts: u64) -> Self {
         Self {
+            id: calc_hash(&addr.clone()),
             node_id,
             addr,
             last_ping_ts,
@@ -71,7 +79,7 @@ impl NodeTransportData {
 }
 
 pub struct NodeConnectionStorage {
-    transports: HashMap<String, NodeTransportData>,
+    transports: HashMap<u64, NodeTransportData>,
 }
 
 impl NodeConnectionStorage {
@@ -80,7 +88,8 @@ impl NodeConnectionStorage {
     }
 
     pub fn upsert_node(&mut self, node_id: NodeId, addr: String, last_ping_ts: u64) {
-        match self.transports.get_mut(&addr) {
+        let id = calc_hash(&addr.clone());
+        match self.transports.get_mut(&id) {
             Some(trans) => {
                 if last_ping_ts > trans.last_ping_ts {
                     trans.last_ping_ts = last_ping_ts;
@@ -88,13 +97,14 @@ impl NodeConnectionStorage {
             }
             None => {
                 let trans = NodeTransportData::new(node_id, addr.clone(), last_ping_ts);
-                self.transports.insert(addr, trans);
+                self.transports.insert(id, trans);
             }
         }
     }
 
     pub fn update_node_connection(&mut self, addr: String, connections: Vec<TransportConnectionData>) {
-        match self.transports.get_mut(&addr) {
+        let id = calc_hash(&addr.clone());
+        match self.transports.get_mut(&id) {
             Some(trans) => {
                 let mut tmp = HashMap::<String, TransportConnectionData>::new();
                 while let Some(node) = trans.connections.pop() {
@@ -123,17 +133,18 @@ impl NodeConnectionStorage {
     }
 
     pub fn get_node(&self, id: NodeId) -> NetworkNodeData {
-        let node_trans: Vec<NetworkTransportData> = self
+        let mut node_trans: Vec<NetworkTransportData> = self
             .transports
             .iter()
             .filter(|(_, trans)| trans.node_id == id)
             .map(|trans| NetworkTransportData {
+                id: trans.1.id,
                 addr: trans.1.addr.clone(),
                 last_ping_ts: trans.1.last_ping_ts,
                 connections: trans.1.connections.clone(),
             })
             .collect();
-
+        node_trans.sort_by(|a, b| a.id.cmp(&b.id));
         NetworkNodeData { node_id: id, transports: node_trans }
     }
 
@@ -143,6 +154,7 @@ impl NodeConnectionStorage {
             match node_map.get_mut(&trans.node_id) {
                 Some(node) => {
                     let transport = NetworkTransportData {
+                        id: trans.id,
                         addr: trans.addr.clone(),
                         last_ping_ts: trans.last_ping_ts,
                         connections: trans.connections.clone(),
@@ -151,6 +163,7 @@ impl NodeConnectionStorage {
                 }
                 None => {
                     let transport: NetworkTransportData = NetworkTransportData {
+                        id: trans.id,
                         addr: trans.addr.clone(),
                         last_ping_ts: trans.last_ping_ts,
                         connections: trans.connections.clone(),
@@ -176,12 +189,13 @@ mod test {
         let mut storage = NodeConnectionStorage::new();
         let node_id = 1;
         let addr = String::from("127.0.0.1");
+        let id = calc_hash(&addr.clone());
         let last_ping_ts = 123456789;
 
         storage.upsert_node(node_id.clone(), addr.clone(), last_ping_ts);
 
         assert_eq!(storage.transports.len(), 1);
-        assert_eq!(storage.transports.get(&addr), Some(&NodeTransportData::new(node_id, addr, last_ping_ts)));
+        assert_eq!(storage.transports.get(&id), Some(&NodeTransportData::new(node_id, addr, last_ping_ts)));
     }
 
     #[test]
@@ -189,6 +203,7 @@ mod test {
         let mut storage = NodeConnectionStorage::new();
         let node_id = 1;
         let addr = String::from("127.0.0.1");
+        let id = calc_hash(&addr.clone());
         let last_ping_ts1 = 123456789;
         let last_ping_ts2 = 987654321;
 
@@ -196,7 +211,7 @@ mod test {
         storage.upsert_node(node_id.clone(), addr.clone(), last_ping_ts2);
 
         assert_eq!(storage.transports.len(), 1);
-        assert_eq!(storage.transports.get(&addr), Some(&NodeTransportData::new(node_id, addr, last_ping_ts2)));
+        assert_eq!(storage.transports.get(&id), Some(&NodeTransportData::new(node_id, addr, last_ping_ts2)));
     }
 
     #[test]
@@ -204,6 +219,7 @@ mod test {
         let mut storage = NodeConnectionStorage::new();
         let node_id = 1;
         let addr = String::from("127.0.0.1");
+        let id = calc_hash(&addr.clone());
         let last_ping_ts1 = 123456789;
         let last_ping_ts2 = 987654321;
 
@@ -212,7 +228,7 @@ mod test {
         storage.upsert_node(node_id.clone(), addr.clone(), last_ping_ts1);
 
         assert_eq!(storage.transports.len(), 1);
-        assert_eq!(storage.transports.get(&addr), Some(&NodeTransportData::new(node_id, addr, last_ping_ts2)));
+        assert_eq!(storage.transports.get(&id), Some(&NodeTransportData::new(node_id, addr, last_ping_ts2)));
     }
 
     #[test]
@@ -220,8 +236,10 @@ mod test {
         let mut storage = NodeConnectionStorage::new();
         let node_id = 1;
         let addr = String::from("127.0.0.1");
+        let id = calc_hash(&addr.clone());
         let last_ping_ts = 123456789;
         let transport_data1 = TransportConnectionData {
+            id: calc_hash(&addr.clone()),
             node_id: node_id.clone(),
             addr: addr.clone(),
             metric: ConnectionMetric {
@@ -234,6 +252,7 @@ mod test {
             direction: 0,
         };
         let transport_data2 = TransportConnectionData {
+            id: calc_hash(&addr.clone()),
             node_id: node_id.clone(),
             addr: addr.clone(),
             metric: ConnectionMetric {
@@ -252,8 +271,9 @@ mod test {
 
         assert_eq!(storage.transports.len(), 1);
         assert_eq!(
-            storage.transports.get(&addr),
+            storage.transports.get(&id),
             Some(&NodeTransportData {
+                id: id,
                 node_id: node_id.clone(),
                 addr: addr.clone(),
                 last_ping_ts,
@@ -267,8 +287,10 @@ mod test {
         let mut storage = NodeConnectionStorage::new();
         let node_id = 1;
         let addr = String::from("127.0.0.1");
+        let id = calc_hash(&addr.clone());
         let last_ping_ts = 123456789;
         let transport_data = TransportConnectionData {
+            id: calc_hash(&addr.clone()),
             node_id: node_id.clone(),
             addr: addr.clone(),
             metric: ConnectionMetric {
@@ -287,8 +309,9 @@ mod test {
 
         assert_eq!(storage.transports.len(), 1);
         assert_eq!(
-            storage.transports.get(&addr),
+            storage.transports.get(&id),
             Some(&NodeTransportData {
+                id: id,
                 node_id: node_id.clone(),
                 addr: addr.clone(),
                 last_ping_ts,
@@ -302,6 +325,7 @@ mod test {
         let mut storage = NodeConnectionStorage::new();
         let addr = String::from("127.0.0.1");
         let transport_data = TransportConnectionData {
+            id: calc_hash(&addr.clone()),
             node_id: 1,
             addr: addr.clone(),
             metric: ConnectionMetric {
@@ -327,6 +351,7 @@ mod test {
         let addr2 = String::from("192.168.0.1");
         let last_ping_ts = 123456789;
         let transport_data1 = TransportConnectionData {
+            id: calc_hash(&addr1.clone()),
             node_id: node_id.clone(),
             addr: addr1.clone(),
             metric: ConnectionMetric {
@@ -339,6 +364,7 @@ mod test {
             direction: 0,
         };
         let transport_data2 = TransportConnectionData {
+            id: calc_hash(&addr2.clone()),
             node_id: node_id.clone(),
             addr: addr2.clone(),
             metric: ConnectionMetric {

@@ -1,9 +1,10 @@
-use actix_web::{get, web, App, HttpServer, Responder, Route};
+use actix_cors::Cors;
+use actix_web::{get, web, App, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 
 use crate::VisualizationMasterSdk;
 
-use super::routes::{self, get_network_graph};
+use super::routes::get_network_graph;
 
 pub struct ServerConf {
     pub port: u16,
@@ -50,7 +51,10 @@ impl Server {
     pub async fn run(&mut self) -> std::io::Result<()> {
         let app_state = AppState::new(self.sdk.clone());
         HttpServer::new(move || {
+            let cors = Cors::default().allow_any_origin().allow_any_method().allow_any_header().send_wildcard();
             App::new()
+                .wrap(actix_web::middleware::Logger::default())
+                .wrap(cors)
                 .app_data(web::Data::new(app_state.clone()))
                 .service(healthcheck)
                 .service(web::resource("/nodes").route(web::get().to(get_network_graph)))
