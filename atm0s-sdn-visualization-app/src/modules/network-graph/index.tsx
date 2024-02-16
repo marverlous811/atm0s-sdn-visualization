@@ -12,7 +12,10 @@ export const NetworkGraph = () => {
   return (
     <SigmaContainer
       style={{ height: '1000px', width: '1000px' }}
-      settings={{ defaultEdgeType: 'arrow' }}
+      settings={{
+        defaultEdgeType: 'arrow',
+        renderEdgeLabels: true,
+      }}
     >
       <LoadGraph />
     </SigmaContainer>

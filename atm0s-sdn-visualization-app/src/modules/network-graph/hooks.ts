@@ -45,7 +45,7 @@ async function getNetworkGraph(): Promise<{
         retval.edges.push({
           from: transport.id,
           to: conn.id,
-          label: `${conn.metric.latency}ms`,
+          label: `ping: ${conn.metric.latency}ms - spd: ${conn.metric.bandwidth}kbps - loss: ${conn.metric.loss_percent}%`,
           status: conn.status,
         })
       }
@@ -67,6 +67,7 @@ export function useNetworkHook() {
   }
 
   useEffect(() => {
+    fetchGraphData()
     let interval = setInterval(() => {
       fetchGraphData()
     }, 5000)
