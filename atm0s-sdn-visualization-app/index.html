@@ -9,5 +9,9 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      const apiEndpoint = "__API_ENDPOINT__";
+      window.API_ENDPOINT = apiEndpoint.startsWith('http') ? apiEndpoint : 'http://localhost:8080';
+    </script>
   </body>
 </html>

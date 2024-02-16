@@ -1,4 +1,5 @@
 import ky from 'ky'
+import { Config } from '../../common'
 
 export enum ConnectionStatus {
   CONNECTED = 'CONNECTED',
@@ -38,7 +39,7 @@ export type NetworkNodeData = {
 export async function getNetworkNodes(): Promise<NetworkNodeData[]> {
   try {
     const res = await ky
-      .get('http://localhost:8080/nodes', {
+      .get(`${Config.API_ENDPOINT}/nodes`, {
         headers: {
           'content-type': 'application/json',
         },

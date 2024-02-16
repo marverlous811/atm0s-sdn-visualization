@@ -67,7 +67,13 @@ export function useNetworkHook() {
   }
 
   useEffect(() => {
-    fetchGraphData()
+    let interval = setInterval(() => {
+      fetchGraphData()
+    }, 5000)
+
+    return () => {
+      clearInterval(interval)
+    }
   }, [])
 
   useEffect(() => {
