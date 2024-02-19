@@ -35,7 +35,7 @@ where
                 // println!("on stats event...");
                 let metric = ConnectionMetric {
                     latency: stats.rtt_ms,
-                    bandwidth: stats.send_est_kbps,
+                    bandwidth: stats.sending_kbps,
                     loss_percent: stats.loss_percent,
                 };
                 let be = VisualizationAgentBehaviourEvent::ConnectionStats(self.conn_id, metric);
