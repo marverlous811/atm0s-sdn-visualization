@@ -1,6 +1,6 @@
 use atm0s_sdn_identity::NodeId;
 
-use super::storage::{NetworkNodeData, NodeConnectionStorage, TransportConnectionData};
+use super::storage::{NodeConnectionData, NodeConnectionStorage, NodeData};
 
 pub struct VisualizationController {
     node_storage: NodeConnectionStorage,
@@ -17,11 +17,11 @@ impl VisualizationController {
         self.node_storage.upsert_node(node_id, addr, now_ms);
     }
 
-    pub fn update_node_conns(&mut self, addr: String, conns: Vec<TransportConnectionData>) {
-        self.node_storage.update_node_connection(addr, conns);
+    pub fn update_node_conns(&mut self, node_id: NodeId, conns: Vec<NodeConnectionData>) {
+        self.node_storage.update_node_connection(node_id, conns);
     }
 
-    pub fn get_nodes(&self) -> Vec<NetworkNodeData> {
+    pub fn get_nodes(&self) -> Vec<NodeData> {
         self.node_storage.list_node()
     }
 

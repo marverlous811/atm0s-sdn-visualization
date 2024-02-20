@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import {
   ConnectionDirection,
   ConnectionStatus,
-  NetworkNodeTransport,
+  NetworkNodeData,
   getNetworkNodes,
 } from './service'
 import { randomIntFromInterval } from '../../util'
@@ -16,6 +16,7 @@ type NetworkNode = {
 }
 
 type NetworkEdge = {
+  key: string
   from: number
   to: number
   color: string
@@ -28,7 +29,7 @@ export type NetworkGraphData = {
 }
 
 export interface INetworkGraphAction {
-  upsertNode(node: NetworkNodeTransport): void
+  upsertNode(node: NetworkNodeData): void
   fetch(): Promise<void>
 }
 
@@ -37,7 +38,7 @@ export const useNetworkdataStore = create<
 >((set, get) => ({
   nodeMap: new Map(),
   edgeMap: new Map(),
-  upsertNode: (node: NetworkNodeTransport) => {
+  upsertNode: (node: NetworkNodeData) => {
     const { nodeMap, edgeMap } = get()
     if (nodeMap.has(node.id)) return
     nodeMap.set(node.id, {
@@ -48,30 +49,25 @@ export const useNetworkdataStore = create<
       size: 15,
     })
 
-    for (const conn of node.connections) {
+    for (const conn of node.conns) {
       if (conn.direction != ConnectionDirection.INCOMING) continue
-      let edge = edgeMap.get(`${node.id}-${conn.id}`)
+      const edgeKey = `${node.id}-${conn.node_id}-${conn.id}`
+      let edge = edgeMap.get(`${edgeKey}`)
       if (!edge) {
         edge = {
+          key: edgeKey,
           from: node.id,
-          to: conn.id,
-          label:
-            conn.status !== ConnectionStatus.CONNECTED
-              ? ''
-              : `ping: ${conn.metric.latency}ms - spd: ${conn.metric.bandwidth}kbps - loss: ${conn.metric.loss_percent}%`,
+          to: conn.node_id,
+          label: `${conn.protocol}`,
           color: conn.status === ConnectionStatus.CONNECTED ? 'green' : 'red',
         }
       } else {
         edge = {
           ...edge,
-          label:
-            conn.status !== ConnectionStatus.CONNECTED
-              ? ''
-              : `ping: ${conn.metric.latency}ms - spd: ${conn.metric.bandwidth}kbps - loss: ${conn.metric.loss_percent}%`,
           color: conn.status === ConnectionStatus.CONNECTED ? 'green' : 'red',
         }
       }
-      edgeMap.set(`${node.id}-${conn.id}`, edge)
+      edgeMap.set(`${edgeKey}`, edge)
     }
 
     set({
@@ -83,9 +79,7 @@ export const useNetworkdataStore = create<
     const { upsertNode } = get()
     const networkNodes = await getNetworkNodes()
     for (let node of networkNodes) {
-      for (let trans of node.transports) {
-        upsertNode(trans)
-      }
+      upsertNode(node)
     }
   },
 }))

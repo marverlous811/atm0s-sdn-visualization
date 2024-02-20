@@ -6,7 +6,7 @@ use crate::{util::calc_hash, VisualizationAgentMsg};
 
 use super::{
     controller::VisualizationController,
-    storage::{NetworkNodeData, TransportConnectionData},
+    storage::{NodeConnectionData, NodeData},
 };
 
 pub struct VisualizationMasterLogic {
@@ -31,11 +31,12 @@ impl VisualizationMasterLogic {
                 self.controller.write().upsert_node(node_id, addr, now_ms);
             }
             VisualizationAgentMsg::NodeConnections(addr, conns) => {
-                let data: Vec<TransportConnectionData> = conns
+                let data: Vec<NodeConnectionData> = conns
                     .into_iter()
-                    .map(|conn| TransportConnectionData {
-                        id: calc_hash(&conn.addr.clone()),
+                    .map(|conn| NodeConnectionData {
+                        id: conn.conn_id,
                         node_id: conn.node_id,
+                        protocol: conn.protocol,
                         addr: conn.addr,
                         metric: conn.metric.clone(),
                         direction: conn.direction,
@@ -48,7 +49,7 @@ impl VisualizationMasterLogic {
         }
     }
 
-    pub fn get_nodes(&self) -> Vec<NetworkNodeData> {
+    pub fn get_nodes(&self) -> Vec<NodeData> {
         self.controller.read().get_nodes()
     }
 

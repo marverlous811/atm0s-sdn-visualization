@@ -6,6 +6,7 @@ import {
   useNetworkdataStore,
 } from './store'
 import { useEffect } from 'react'
+import { MultiDirectedGraph } from 'graphology'
 
 type LoadGraphProps = {
   store: NetworkGraphData & INetworkGraphAction
@@ -36,11 +37,12 @@ const LoadGraph = (props: LoadGraphProps) => {
     }
 
     for (let edge of [...store.edgeMap.values()]) {
-      graph.addEdge(edge.from, edge.to, {
+      graph.addDirectedEdgeWithKey(edge.key, edge.from, edge.to, {
         ...edge,
       })
     }
 
+    console.log(graph.edges())
     return () => {
       graph.clear()
     }
@@ -58,6 +60,7 @@ export const NetworkGraph = () => {
         defaultEdgeType: 'arrow',
         renderEdgeLabels: true,
       }}
+      graph={MultiDirectedGraph}
     >
       <LoadGraph store={store} />
     </SigmaContainer>

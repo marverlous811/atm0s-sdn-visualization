@@ -7,6 +7,8 @@ pub const MAX_CONN_STATS_SEND: usize = 10;
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct ConnectionMsg {
+    pub conn_id: u64,
+    pub protocol: u8,
     pub addr: String,
     pub node_id: NodeId,
     pub direction: u8,
@@ -28,6 +30,6 @@ pub enum VisualizationAgentMsg {
     // node_id, address, timestamp
     NodePing(NodeId, String, u64),
 
-    // node_address, list connections with length not greater than 20
-    NodeConnections(String, Vec<ConnectionMsg>),
+    // node_id, list connections with length not greater than 20
+    NodeConnections(NodeId, Vec<ConnectionMsg>),
 }

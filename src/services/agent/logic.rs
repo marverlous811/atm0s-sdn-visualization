@@ -15,13 +15,15 @@ pub struct VisualizationAgentLogic {
     storage: ConnectionStorage,
 }
 
-fn build_conns_stats_msg(addr: NodeAddr, mut conns: Vec<ConnectionNode>) -> Vec<VisualizationAgentMsg> {
+fn build_conns_stats_msg(id: NodeId, mut conns: Vec<ConnectionNode>) -> Vec<VisualizationAgentMsg> {
     let mut ret_val = Vec::<VisualizationAgentMsg>::new();
     let mut conn_vec_to_send = Vec::<ConnectionMsg>::new();
     while let Some(conn) = conns.pop() {
         match conn.metric {
             Some(metric) => {
                 conn_vec_to_send.push(ConnectionMsg {
+                    conn_id: conn.uuid,
+                    protocol: conn.protocol,
                     addr: conn.addr.to_string(),
                     node_id: conn.node_id,
                     direction: conn.direction,
@@ -30,7 +32,7 @@ fn build_conns_stats_msg(addr: NodeAddr, mut conns: Vec<ConnectionNode>) -> Vec<
                     latest_updated_at: conn.latest_updated_at,
                 });
                 if conn_vec_to_send.len() >= MAX_CONN_STATS_SEND {
-                    ret_val.push(VisualizationAgentMsg::NodeConnections(addr.to_string(), conn_vec_to_send.clone()));
+                    ret_val.push(VisualizationAgentMsg::NodeConnections(id, conn_vec_to_send.clone()));
                     conn_vec_to_send.clear();
                 }
             }
@@ -38,7 +40,7 @@ fn build_conns_stats_msg(addr: NodeAddr, mut conns: Vec<ConnectionNode>) -> Vec<
         };
     }
     if conn_vec_to_send.len() > 0 {
-        ret_val.push(VisualizationAgentMsg::NodeConnections(addr.to_string(), conn_vec_to_send.clone()));
+        ret_val.push(VisualizationAgentMsg::NodeConnections(id, conn_vec_to_send.clone()));
     }
     ret_val
 }
@@ -57,7 +59,7 @@ impl VisualizationAgentLogic {
         let ping_msg = VisualizationAgentMsg::NodePing(self.node_id, self.node_addr.to_string(), now_ms);
         self.msg_queue.push_back(ping_msg);
 
-        let mut stats_msgs = build_conns_stats_msg(self.node_addr.clone(), self.storage.list_conns());
+        let mut stats_msgs = build_conns_stats_msg(self.node_id, self.storage.list_conns());
         while let Some(msg) = stats_msgs.pop() {
             self.msg_queue.push_back(msg);
         }
@@ -138,13 +140,13 @@ mod test {
             },
         ];
 
-        let result = build_conns_stats_msg(addr, conns);
+        let result = build_conns_stats_msg(node_id, conns);
 
         assert_eq!(result.len(), 1);
         let data = result.index(0).clone();
         match data {
-            VisualizationAgentMsg::NodeConnections(addr, conns) => {
-                assert_eq!(addr, addr.to_string());
+            VisualizationAgentMsg::NodeConnections(id, conns) => {
+                assert_eq!(id, node_id);
                 assert_eq!(conns.len(), 2);
             }
             _ => {}
@@ -173,7 +175,7 @@ mod test {
                 latest_updated_at: 0,
             })
         }
-        let result = build_conns_stats_msg(addr, conns);
+        let result = build_conns_stats_msg(node_id, conns);
 
         assert_eq!(result.len(), 2);
     }

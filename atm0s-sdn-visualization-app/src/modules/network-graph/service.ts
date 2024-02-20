@@ -14,6 +14,7 @@ export enum ConnectionDirection {
 export type NetworkNodeConnection = {
   id: number
   node_id: number
+  protocol: number
   addr: string
   status: ConnectionStatus
   direction: ConnectionDirection
@@ -25,15 +26,11 @@ export type NetworkNodeConnection = {
   }
 }
 
-export type NetworkNodeTransport = {
+export type NetworkNodeData = {
   id: number
   addr: string
-  connections: Array<NetworkNodeConnection>
-}
-
-export type NetworkNodeData = {
-  node_id: number
-  transports: Array<NetworkNodeTransport>
+  last_ping_ts: number
+  conns: Array<NetworkNodeConnection>
 }
 
 export async function getNetworkNodes(): Promise<NetworkNodeData[]> {
