@@ -19,7 +19,7 @@ pub struct ConnectionMsg {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum VisualizationAgentBehaviourEvent {
-    ConnectionStats(ConnId, ConnectionMetric),
+    ConnectionStats(ConnId, NodeId, ConnectionMetric),
 }
 
 #[derive(Debug, PartialEq, Eq)]

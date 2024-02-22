@@ -2,7 +2,7 @@ use atm0s_sdn_identity::{ConnId, NodeAddr, NodeId};
 use atm0s_sdn_utils::hashmap::HashMap;
 use log::{debug, error};
 
-use crate::identity::{ConnectionMetric, ConnectionStatus};
+use crate::identity::{generate_connection_id, ConnectionMetric, ConnectionStatus};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConnectionNode {
@@ -32,16 +32,17 @@ impl ConnectionStorage {
     }
 
     pub fn new_connection(&mut self, id: ConnId, node_id: NodeId, addr: NodeAddr, now: u64) {
-        match self.conns.get_mut(&id.uuid()) {
+        let uuid = generate_connection_id(id.protocol(), id.direction(), node_id);
+        match self.conns.get_mut(&uuid) {
             Some(node) => {
                 node.status = ConnectionStatus::CONNECTED;
                 node.latest_updated_at = now
             }
             None => {
                 self.conns.insert(
-                    id.uuid(),
+                    uuid,
                     ConnectionNode {
-                        uuid: id.uuid(),
+                        uuid,
                         protocol: id.protocol(),
                         node_id,
                         addr: addr.to_string(),
@@ -55,8 +56,8 @@ impl ConnectionStorage {
         }
     }
 
-    pub fn update_connection_data(&mut self, id: ConnId, data: ConnectionModifyData) -> bool {
-        match self.conns.get_mut(&id.uuid()) {
+    pub fn update_connection_data(&mut self, id: u64, data: ConnectionModifyData) -> bool {
+        match self.conns.get_mut(&id) {
             Some(node) => {
                 match data.status {
                     Some(status) => node.status = status,

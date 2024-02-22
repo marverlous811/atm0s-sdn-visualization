@@ -20,21 +20,22 @@ const updateDataset = (data) => {
     const edgeToAdd = []
     const edgeToUpdate = []
     for(let node of data) {
-        if(nodes.get(node.id)) continue
-        nodeToAdd.push({id: node.id, label: `Node ${node.id}`})
+        const oldNode = nodes.get(node.id)
+        if(!oldNode) {
+            nodeToAdd.push({id: node.id, label: `Node ${node.id}`})
+        }
 
         for(let conn of node.conns) {
             // skip if outgoing connection
-            if(conn.direction != 0) continue
-            const edgeId = `${conn.node_id}-${node.id}-${conn.id}`
+            if(conn.direction != 1) continue
+            const edgeId = `${node.id}-${conn.node_id}-${conn.id}`
             const edge = edges.get(edgeId)
             if(edge) {
-                console.log(edge)
                 edgeToUpdate.push({...edge, color: conn.status === 'CONNECTED' ? 'green' : 'red'})
             } else {
-                edgeToAdd.push({id: edgeId, from: conn.node_id, to: node.id, arrows: {
+                edgeToAdd.push({id: edgeId, to: conn.node_id, from: node.id, arrows: {
                     from: true
-                }, color: conn.status === 'CONNECTED' ? 'green' : 'red'})
+                }, color: conn.status === 'CONNECTED' ? 'green' : 'red', label: `protocol: ${conn.protocol}, ping: ${conn.metric.latency}ms`})
             }
         }
     }

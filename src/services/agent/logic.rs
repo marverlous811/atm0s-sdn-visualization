@@ -1,7 +1,7 @@
 use atm0s_sdn_identity::{ConnId, NodeAddr, NodeId};
 use atm0s_sdn_utils::vec_dequeue::VecDeque;
 
-use crate::identity::{ConnectionMetric, ConnectionStatus};
+use crate::identity::{generate_connection_id, ConnectionMetric, ConnectionStatus};
 
 use super::{
     msg::{ConnectionMsg, VisualizationAgentMsg, MAX_CONN_STATS_SEND},
@@ -69,9 +69,10 @@ impl VisualizationAgentLogic {
         self.storage.new_connection(conn_id, node_id, addr, now);
     }
 
-    pub fn on_node_disconnected(&mut self, conn_id: ConnId, now: u64) {
+    pub fn on_node_disconnected(&mut self, conn_id: ConnId, node_id: NodeId, now: u64) {
+        let uuid = generate_connection_id(conn_id.protocol(), conn_id.direction(), node_id);
         self.storage.update_connection_data(
-            conn_id,
+            uuid,
             ConnectionModifyData {
                 status: Some(ConnectionStatus::DISCONNECTED),
                 metric: None,
@@ -80,9 +81,10 @@ impl VisualizationAgentLogic {
         );
     }
 
-    pub fn on_connection_stats(&mut self, conn_id: ConnId, metric: ConnectionMetric, now: u64) {
+    pub fn on_connection_stats(&mut self, conn_id: ConnId, node_id: NodeId, metric: ConnectionMetric, now: u64) {
+        let uuid = generate_connection_id(conn_id.protocol(), conn_id.direction(), node_id);
         self.storage.update_connection_data(
-            conn_id,
+            uuid,
             ConnectionModifyData {
                 status: None,
                 metric: Some(metric),

@@ -1,4 +1,8 @@
+mod conn;
+
 use serde::{Deserialize, Serialize};
+
+pub use conn::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum ConnectionStatus {
@@ -14,6 +18,8 @@ impl ConnectionStatus {
         }
     }
 }
+
+pub const CONNECTION_TIMEOUT_MS: u64 = 1000 * 60 * 2;
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct ConnectionMetric {

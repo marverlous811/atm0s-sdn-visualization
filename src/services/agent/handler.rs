@@ -8,12 +8,17 @@ use crate::{VisualizationAgentBehaviourEvent, VisualizationAgentHandlerEvent};
 
 pub struct VisualizationAgentHandler<BE, HE> {
     conn_id: ConnId,
+    node_id: NodeId,
     actions: VecDeque<ConnectionHandlerAction<BE, HE>>,
 }
 
 impl<BE, HE> VisualizationAgentHandler<BE, HE> {
-    pub fn new(conn_id: ConnId) -> Self {
-        Self { conn_id, actions: VecDeque::new() }
+    pub fn new(conn_id: ConnId, node_id: NodeId) -> Self {
+        Self {
+            conn_id,
+            node_id,
+            actions: VecDeque::new(),
+        }
     }
 }
 
@@ -38,7 +43,7 @@ where
                     bandwidth: stats.sending_kbps,
                     loss_percent: stats.loss_percent,
                 };
-                let be = VisualizationAgentBehaviourEvent::ConnectionStats(self.conn_id, metric);
+                let be = VisualizationAgentBehaviourEvent::ConnectionStats(self.conn_id, self.node_id, metric);
                 self.actions.push_back(ConnectionHandlerAction::ToBehaviour(be.into()));
             }
             _ => {}
