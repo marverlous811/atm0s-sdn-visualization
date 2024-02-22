@@ -1,4 +1,5 @@
 use actix_cors::Cors;
+use actix_files::Files;
 use actix_web::{get, web, App, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 
@@ -57,6 +58,7 @@ impl Server {
                 .wrap(cors)
                 .app_data(web::Data::new(app_state.clone()))
                 .service(healthcheck)
+                .service(Files::new("/public", "./public").index_file("index.html"))
                 .service(web::resource("/nodes").route(web::get().to(get_network_graph)))
         })
         .bind(("0.0.0.0", self.conf.port))
