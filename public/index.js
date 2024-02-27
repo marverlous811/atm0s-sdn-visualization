@@ -7,7 +7,7 @@ const edges = new vis.DataSet()
 
 const fetch = () => {
     return ky
-      .get(`/nodes`, {
+      .get(`/api/nodes`, {
         headers: {
           'content-type': 'application/json',
         },

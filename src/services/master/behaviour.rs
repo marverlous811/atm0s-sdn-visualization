@@ -4,6 +4,7 @@ use atm0s_sdn_network::msg::TransportMsg;
 use atm0s_sdn_network::transport::{ConnectionRejectReason, ConnectionSender, OutgoingConnectionError};
 use atm0s_sdn_utils::vec_dequeue::VecDeque;
 
+use crate::collector::SdnMonitorController;
 use crate::{VisualizationAgentMsg, VisualizationMasterSdk, VISUALIZATION_MASTER_SERVICE};
 
 use super::handler::VisualizationMasterHandler;
@@ -16,9 +17,9 @@ pub struct VisualizationMasterBehaviour<HE, SE> {
 }
 
 impl<HE, SE> VisualizationMasterBehaviour<HE, SE> {
-    pub fn new() -> (Self, VisualizationMasterSdk) {
-        let logic = VisualizationMasterLogic::new();
-        let sdk = VisualizationMasterSdk::new(logic.clone());
+    pub fn new(controller: SdnMonitorController) -> (Self, VisualizationMasterSdk) {
+        let logic = VisualizationMasterLogic::new(controller.clone());
+        let sdk = VisualizationMasterSdk::new(controller);
         (Self { logic, queue_action: VecDeque::new() }, sdk)
     }
 }

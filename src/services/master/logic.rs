@@ -1,16 +1,10 @@
-use std::sync::Arc;
-
-use parking_lot::RwLock;
-
-use crate::{util::calc_hash, VisualizationAgentMsg};
-
-use super::{
-    controller::VisualizationController,
-    storage::{NodeConnectionData, NodeData},
+use crate::{
+    collector::{NodeConnectionData, NodeData, SdnMonitorController},
+    VisualizationAgentMsg,
 };
 
 pub struct VisualizationMasterLogic {
-    controller: Arc<RwLock<Box<VisualizationController>>>,
+    controller: SdnMonitorController,
 }
 
 impl Clone for VisualizationMasterLogic {
@@ -20,15 +14,14 @@ impl Clone for VisualizationMasterLogic {
 }
 
 impl VisualizationMasterLogic {
-    pub fn new() -> Self {
-        let controller = Arc::new(RwLock::new(Box::new(VisualizationController::new())));
-        Self { controller: controller }
+    pub fn new(controller: SdnMonitorController) -> Self {
+        Self { controller: controller.clone() }
     }
 
     pub fn process_agent_msg(&mut self, msg: VisualizationAgentMsg) {
         match msg {
             VisualizationAgentMsg::NodePing(node_id, addr, now_ms) => {
-                self.controller.write().upsert_node(node_id, addr, now_ms);
+                self.controller.upsert_node(node_id, addr, now_ms);
             }
             VisualizationAgentMsg::NodeConnections(addr, conns) => {
                 let data: Vec<NodeConnectionData> = conns
@@ -44,16 +37,12 @@ impl VisualizationMasterLogic {
                         last_updated_at: conn.latest_updated_at,
                     })
                     .collect();
-                self.controller.write().update_node_conns(addr, data);
+                self.controller.update_node_conns(addr, data);
             }
         }
     }
 
     pub fn get_nodes(&self) -> Vec<NodeData> {
-        self.controller.read().get_nodes()
-    }
-
-    pub fn dump_graph(self) {
-        self.controller.read().dump_print();
+        self.controller.get_nodes()
     }
 }

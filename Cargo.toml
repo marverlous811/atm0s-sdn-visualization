@@ -11,18 +11,22 @@ atm0s-sdn-identity = "0.2.0"
 atm0s-sdn-utils = "0.1.1"
 atm0s-sdn-router = "0.1.4"
 async-trait = "0.1"
-async-std = { version = "1.12", features = ["unstable", "attributes"] }
 async-notify = "0.3.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "*" }
 parking_lot = "0.12"
 env_logger = "0.11.1"
 log = "0.4"
-actix-web = "4"
-actix-cors = "0.6.0"
-actix-files = "0.6.5"
+poem = { version = "2.0", features = ["embed", "static-files"] }
+rust-embed = { version = "8.2", optional = true }
 
 [dev-dependencies]
+tokio = { version = "1.36.0", features = ["rt", "rt-multi-thread", "macros"] }
 atm0s-sdn = { features = ["all"], version = "0.1.7" }
 clap = { version = "4.4.14", features = ["derive", "env"] }
 reedline-repl-rs = { version = "1.0.7", features = ["async"] }
+tracing-subscriber = "0.3"
+
+[features]
+default = ["embed"]
+embed = ["rust-embed"]

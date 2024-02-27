@@ -1,8 +1,7 @@
-mod api;
+mod collector;
 mod identity;
 mod services;
 mod util;
 
-// pub use service::*;
-pub use api::*;
+pub use collector::*;
 pub use services::*;

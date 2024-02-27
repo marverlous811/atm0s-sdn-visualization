@@ -1,25 +1,21 @@
-use super::{logic::VisualizationMasterLogic, storage::NodeData};
+use crate::collector::{NodeData, SdnMonitorController};
 
 pub struct VisualizationMasterSdk {
-    logic: VisualizationMasterLogic,
+    controller: SdnMonitorController,
 }
 
 impl Clone for VisualizationMasterSdk {
     fn clone(&self) -> Self {
-        Self { logic: self.logic.clone() }
+        Self { controller: self.controller.clone() }
     }
 }
 
 impl VisualizationMasterSdk {
-    pub fn new(logic: VisualizationMasterLogic) -> Self {
-        Self { logic }
+    pub fn new(controller: SdnMonitorController) -> Self {
+        Self { controller }
     }
 
     pub fn get_nodes(&self) -> Vec<NodeData> {
-        self.logic.get_nodes()
-    }
-
-    pub fn dump_graph(self) {
-        self.logic.dump_graph()
+        self.controller.get_nodes()
     }
 }
