@@ -35,4 +35,8 @@ impl SdnMonitorController {
     pub fn get_nodes(&self) -> Vec<NodeData> {
         self.node_storage.read().list_node()
     }
+
+    pub fn get_node(&self, id: NodeId) -> Option<NodeData> {
+        self.node_storage.read().get_node(id)
+    }
 }

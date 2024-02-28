@@ -4,8 +4,9 @@ mod storage;
 pub use controller::SdnMonitorController;
 use poem::{
     get, handler,
-    web::{Data, Json},
-    EndpointExt, Route,
+    http::StatusCode,
+    web::{Data, Json, Path},
+    EndpointExt, Response, Route,
 };
 
 #[cfg(not(feature = "embed"))]
@@ -35,9 +36,21 @@ fn fetch_all_nodes(Data(controller): Data<&SdnMonitorController>) -> Json<Networ
     Json(data)
 }
 
+#[handler]
+fn get_node(Path(id): Path<u32>, Data(controller): Data<&SdnMonitorController>) -> Response {
+    match controller.get_node(id) {
+        Some(node) => Response::builder().status(StatusCode::OK).body(serde_json::to_string(&node).unwrap()),
+        None => Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(serde_json::to_string(&serde_json::json!({ "msg": "Item not found" })).unwrap()),
+    }
+}
+
 pub fn build_visualization_route() -> (Route, SdnMonitorController) {
     let controller = SdnMonitorController::new();
-    let route = Route::new().at("/api/nodes", get(fetch_all_nodes.data(controller.clone())));
+    let route = Route::new()
+        .at("/api/nodes", get(fetch_all_nodes).data(controller.clone()))
+        .at("/api/nodes/:id", get(get_node).data(controller.clone()));
 
     #[cfg(not(feature = "embed"))]
     let route = route.nest("/", StaticFilesEndpoint::new("./public/").show_files_listing());

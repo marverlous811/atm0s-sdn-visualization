@@ -23,6 +23,7 @@ use clap::ArgAction;
 use clap::ArgMatches;
 use clap::{arg, Parser};
 use poem::listener::TcpListener;
+use poem::middleware::Cors;
 use poem::middleware::Tracing;
 use poem::EndpointExt;
 use poem::Route;
@@ -177,7 +178,7 @@ async fn main() {
     match route {
         Some(route) => {
             let _ = tokio::task::spawn(async move {
-                let app = Route::new().nest("/", route).with(Tracing);
+                let app = Route::new().nest("/", route).with(Cors::new()).with(Tracing);
                 Server::new(TcpListener::bind("0.0.0.0:8080")).run(app).await;
             });
         }

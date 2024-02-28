@@ -1,17 +1,18 @@
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="styles.css">
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-        <script
-            type="text/javascript"
-            src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"
-        ></script>
-    </head>
-    <body>
-        <div id="network-visualization"></div>
-    </body>
-    <script type="module" src="index.js"></script>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sdn monitor</title>
+    <script type="module" crossorigin src="/assets/index-Dae4vuaO.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DCVgxivF.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      const apiEndpoint = "__API_ENDPOINT__";
+      window.API_ENDPOINT = apiEndpoint.startsWith('http') ? apiEndpoint : '';
+    </script>
+  </body>
 </html>

@@ -110,6 +110,13 @@ impl NodeConnectionStorage {
     pub fn list_node(&self) -> Vec<NodeData> {
         self.nodes.values().into_iter().map(|data| data.clone()).collect()
     }
+
+    pub fn get_node(&self, id: NodeId) -> Option<NodeData> {
+        match self.nodes.get(&id) {
+            Some(node) => Some(node.clone()),
+            None => None,
+        }
+    }
 }
 
 #[cfg(test)]
