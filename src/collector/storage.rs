@@ -117,6 +117,10 @@ impl NodeConnectionStorage {
             None => None,
         }
     }
+
+    pub fn count_node(&self) -> usize {
+        self.nodes.len()
+    }
 }
 
 #[cfg(test)]

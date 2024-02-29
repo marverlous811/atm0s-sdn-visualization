@@ -39,4 +39,8 @@ impl SdnMonitorController {
     pub fn get_node(&self, id: NodeId) -> Option<NodeData> {
         self.node_storage.read().get_node(id)
     }
+
+    pub fn count_nodes(&self) -> usize {
+        self.node_storage.read().count_node()
+    }
 }

@@ -29,6 +29,11 @@ pub struct NetworkGraphNode {
     pub nodes: Vec<NodeData>,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub struct CountResponse {
+    pub count: usize,
+}
+
 #[handler]
 fn fetch_all_nodes(Data(controller): Data<&SdnMonitorController>) -> Json<NetworkGraphNode> {
     let nodes = controller.get_nodes();
@@ -46,11 +51,18 @@ fn get_node(Path(id): Path<u32>, Data(controller): Data<&SdnMonitorController>) 
     }
 }
 
+#[handler]
+fn count_node(Data(controller): Data<&SdnMonitorController>) -> Json<CountResponse> {
+    let count = controller.count_nodes();
+    Json(CountResponse { count })
+}
+
 pub fn build_visualization_route() -> (Route, SdnMonitorController) {
     let controller = SdnMonitorController::new();
     let route = Route::new()
         .at("/api/nodes", get(fetch_all_nodes).data(controller.clone()))
-        .at("/api/nodes/:id", get(get_node).data(controller.clone()));
+        .at("/api/nodes/:id", get(get_node).data(controller.clone()))
+        .at("/api/nodes/count", get(count_node).data(controller.clone()));
 
     #[cfg(not(feature = "embed"))]
     let route = route.nest("/", StaticFilesEndpoint::new("./public/").show_files_listing());
